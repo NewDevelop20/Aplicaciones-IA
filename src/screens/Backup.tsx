@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import { exportDataFile, parseImportedFile } from '../storage';
+import { getSyncToken, setSyncToken } from '../sync';
 
 export function Backup() {
-  const { data, setData } = useStore();
+  const { data, setData, syncStatus, syncError, lastSyncedAt, triggerSync } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tokenInput, setTokenInput] = useState(() => getSyncToken() ?? '');
+  const [showTokenHelp, setShowTokenHelp] = useState(false);
 
   function handleExport() {
     exportDataFile(data);
@@ -38,6 +41,14 @@ export function Backup() {
     }
   }
 
+  function handleSaveToken() {
+    setSyncToken(tokenInput);
+    setMessage(tokenInput.trim() ? 'Token guardado. Sincronizando…' : 'Token eliminado. La sincronización automática está desactivada.');
+    if (tokenInput.trim()) triggerSync();
+  }
+
+  const hasToken = !!getSyncToken();
+
   return (
     <div className="mx-auto max-w-md pb-28">
       <header className="safe-top sticky top-0 z-10 bg-neutral-950/95 px-4 pb-3 pt-4 backdrop-blur">
@@ -46,9 +57,67 @@ export function Backup() {
 
       <main className="space-y-4 px-4 pt-2">
         <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-neutral-100">Resumen nocturno (23:00)</h2>
+            <SyncBadge status={syncStatus} hasToken={hasToken} />
+          </div>
+          <p className="mt-1 text-sm text-neutral-400">
+            Pega aquí un token de GitHub para que tus datos se sincronicen y recibas cada noche un resumen del estado de tus ideas.
+          </p>
+
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            placeholder="github_pat_…"
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="mt-3 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
+          />
+          <div className="mt-2 flex gap-2">
+            <button onClick={handleSaveToken} className="flex-1 rounded-lg bg-white py-2 text-sm font-semibold text-neutral-900">
+              Guardar token
+            </button>
+            {hasToken && (
+              <button onClick={() => triggerSync()} className="rounded-lg border border-neutral-700 px-3 text-sm text-neutral-200">
+                Sincronizar ahora
+              </button>
+            )}
+          </div>
+
+          {hasToken && (
+            <p className="mt-2 text-xs text-neutral-500">
+              {lastSyncedAt ? `Última sincronización: ${new Date(lastSyncedAt).toLocaleString('es-ES')}` : 'Todavía no se ha sincronizado.'}
+            </p>
+          )}
+          {syncStatus === 'error' && syncError && <p className="mt-2 text-xs text-rose-400">{syncError}</p>}
+
+          <button onClick={() => setShowTokenHelp((v) => !v)} className="mt-3 text-xs font-medium text-neutral-400 underline">
+            {showTokenHelp ? 'Ocultar instrucciones' : '¿Cómo consigo el token?'}
+          </button>
+          {showTokenHelp && (
+            <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs text-neutral-400">
+              <li>
+                En el navegador, ve a{' '}
+                <span className="text-neutral-300">github.com/settings/personal-access-tokens/new</span>
+              </li>
+              <li>
+                Repository access → <span className="text-neutral-300">Only select repositories</span> →{' '}
+                <span className="text-neutral-300">NewDevelop20/Aplicaciones-IA</span>
+              </li>
+              <li>
+                Permissions → Repository permissions → <span className="text-neutral-300">Actions: Read and write</span> (deja el resto en
+                "No access")
+              </li>
+              <li>Generate token, cópialo y pégalo arriba. Es privado: se queda solo en este iPhone.</li>
+            </ol>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
           <h2 className="text-sm font-semibold text-neutral-100">Copia de seguridad</h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Todos los datos se guardan solo en este iPhone. Exporta un backup de vez en cuando para no perder nada si borras la app.
+            Todos los datos viven principalmente en este iPhone. Exporta un backup de vez en cuando para no perder nada si borras la app.
           </p>
           <div className="mt-3 flex flex-col gap-2">
             <button onClick={handleExport} className="rounded-xl bg-white py-2.5 text-sm font-semibold text-neutral-900">
@@ -79,8 +148,18 @@ export function Backup() {
           </button>
         </section>
 
-        <p className="pt-2 text-center text-xs text-neutral-600">Ideario · funciona sin conexión · tus datos no salen de tu iPhone</p>
+        <p className="pt-2 text-center text-xs text-neutral-600">
+          Ideario · funciona sin conexión · la sincronización nocturna es opcional y solo se activa si guardas un token
+        </p>
       </main>
     </div>
   );
+}
+
+function SyncBadge({ status, hasToken }: { status: 'idle' | 'syncing' | 'ok' | 'error'; hasToken: boolean }) {
+  if (!hasToken) return <span className="text-xs text-neutral-500">Desactivada</span>;
+  if (status === 'syncing') return <span className="text-xs text-amber-400">Sincronizando…</span>;
+  if (status === 'error') return <span className="text-xs text-rose-400">Error</span>;
+  if (status === 'ok') return <span className="text-xs text-emerald-400">Al día</span>;
+  return <span className="text-xs text-neutral-500">Activada</span>;
 }

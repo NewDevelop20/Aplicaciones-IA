@@ -1,0 +1,44 @@
+name: Sync Ideario data
+
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Full JSON export of the Ideario app state"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ideario-data-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/personal-ideas-management-app-g5vwdr
+
+      - name: Write data file
+        env:
+          DATA: ${{ inputs.data }}
+        run: |
+          mkdir -p data
+          printf '%s' "$DATA" > data/ideario-data.json
+          python3 -c "import json,sys; json.load(open('data/ideario-data.json'))"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "ideario-sync-bot"
+          git config user.email "noreply@anthropic.com"
+          if git diff --quiet -- data/ideario-data.json; then
+            echo "No changes to sync."
+            exit 0
+          fi
+          git add data/ideario-data.json
+          git commit -m "Sync Ideario data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git push origin HEAD:claude/personal-ideas-management-app-g5vwdr

@@ -1,11 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AppData, Person, Project, Status, Task } from './types';
 import { loadData, newId, saveData } from './storage';
+import { getLastSyncedAt, getSyncToken, syncNow } from './sync';
+
+export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'error';
 
 interface StoreValue {
   data: AppData;
   setData: (data: AppData) => void;
+  syncStatus: SyncStatus;
+  syncError: string | null;
+  lastSyncedAt: string | null;
+  triggerSync: () => void;
   addProject: (input: { title: string; description: string; status: Status; priority: Project['priority']; startDate: string | null; dueDate: string | null; tags: string[]; nextStep: string }) => Project;
   updateProject: (id: string, patch: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
   deleteProject: (id: string) => void;
@@ -22,10 +29,49 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setDataState] = useState<AppData>(() => loadData());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() => getLastSyncedAt());
+  const syncTimer = useRef<number | null>(null);
+  const isFirstRun = useRef(true);
 
   useEffect(() => {
     saveData(data);
   }, [data]);
+
+  const runSync = useCallback(async (payload: AppData) => {
+    if (!getSyncToken()) return;
+    setSyncStatus('syncing');
+    setSyncError(null);
+    const result = await syncNow(payload);
+    if (result.ok) {
+      setSyncStatus('ok');
+      setLastSyncedAt(getLastSyncedAt());
+    } else {
+      setSyncStatus('error');
+      setSyncError(result.error ?? 'Error desconocido');
+    }
+  }, []);
+
+  const triggerSync = useCallback(() => {
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    void runSync(data);
+  }, [data, runSync]);
+
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    if (!getSyncToken()) return;
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => {
+      void runSync(data);
+    }, 4000);
+    return () => {
+      if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    };
+  }, [data, runSync]);
 
   const setData = useCallback((next: AppData) => setDataState(next), []);
 
@@ -119,8 +165,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<StoreValue>(
-    () => ({ data, setData, addProject, updateProject, deleteProject, addTask, toggleTask, updateTask, deleteTask, addPerson, updatePerson, deletePerson }),
-    [data, setData, addProject, updateProject, deleteProject, addTask, toggleTask, updateTask, deleteTask, addPerson, updatePerson, deletePerson]
+    () => ({
+      data,
+      setData,
+      syncStatus,
+      syncError,
+      lastSyncedAt,
+      triggerSync,
+      addProject,
+      updateProject,
+      deleteProject,
+      addTask,
+      toggleTask,
+      updateTask,
+      deleteTask,
+      addPerson,
+      updatePerson,
+      deletePerson,
+    }),
+    [data, setData, syncStatus, syncError, lastSyncedAt, triggerSync, addProject, updateProject, deleteProject, addTask, toggleTask, updateTask, deleteTask, addPerson, updatePerson, deletePerson]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
