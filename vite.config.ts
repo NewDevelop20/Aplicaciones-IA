@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/aplicaciones-ia/',
+  base: '/Aplicaciones-IA/',
   plugins: [
     react(),
     tailwindcss(),
@@ -13,12 +13,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
-        id: '/aplicaciones-ia/',
+        id: '/Aplicaciones-IA/',
         name: 'Ideario',
         short_name: 'Ideario',
         description: 'Tus ideas y proyectos personales: estado, personas, tareas y próximos pasos.',
-        start_url: '/aplicaciones-ia/',
-        scope: '/aplicaciones-ia/',
+        start_url: '/Aplicaciones-IA/',
+        scope: '/Aplicaciones-IA/',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#0a0a0c',

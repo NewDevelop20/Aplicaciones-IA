@@ -40,7 +40,7 @@ El workflow en `.github/workflows/deploy.yml` publica automáticamente el conten
 
 1. En GitHub, ve a **Settings → Pages** de este repositorio y elige **Source: GitHub Actions**.
 2. Haz push a `main` (o ejecuta el workflow manualmente desde la pestaña Actions).
-3. La app quedará disponible en `https://newdevelop20.github.io/aplicaciones-ia/`.
+3. La app quedará disponible en `https://newdevelop20.github.io/Aplicaciones-IA/`.
 
 ## Regenerar los iconos
 
