@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import type { Route } from '../router';
 import { STATUS_META, formatDate } from '../statusMeta';
@@ -12,6 +12,9 @@ export function ProjectDetail({ id, onNavigate }: { id: string; onNavigate: (r: 
   const [editingDesc, setEditingDesc] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
+  const [justCompleted, setJustCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const newTaskInputRef = useRef<HTMLInputElement>(null);
 
   if (!project) {
     return (
@@ -39,6 +42,15 @@ export function ProjectDetail({ id, onNavigate }: { id: string; onNavigate: (r: 
     if (!newTask.trim()) return;
     addTask(project!.id, newTask.trim());
     setNewTask('');
+    setJustCompleted(false);
+  }
+
+  function handleToggleTask(taskId: string, wasDone: boolean) {
+    toggleTask(project!.id, taskId);
+    if (!wasDone) {
+      setJustCompleted(true);
+      newTaskInputRef.current?.focus();
+    }
   }
 
   function togglePerson(personId: string) {
@@ -55,6 +67,10 @@ export function ProjectDetail({ id, onNavigate }: { id: string; onNavigate: (r: 
   }
 
   const doneCount = project.tasks.filter((t) => t.done).length;
+  const pendingTasks = project.tasks.filter((t) => !t.done);
+  const completedTasks = project.tasks
+    .filter((t) => t.done)
+    .sort((a, b) => new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime());
 
   return (
     <div className="mx-auto max-w-md pb-28">
@@ -175,28 +191,38 @@ export function ProjectDetail({ id, onNavigate }: { id: string; onNavigate: (r: 
               Tareas {project.tasks.length > 0 && `(${doneCount}/${project.tasks.length})`}
             </h2>
           </div>
+
           <div className="space-y-1.5">
-            {project.tasks.map((t) => (
+            {pendingTasks.length === 0 && completedTasks.length === 0 && (
+              <p className="text-sm text-neutral-500">Sin tareas todavía. Añade la primera abajo.</p>
+            )}
+            {pendingTasks.map((t) => (
               <div key={t.id} className="flex items-center gap-2.5 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2.5">
                 <button
-                  onClick={() => toggleTask(project.id, t.id)}
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${
-                    t.done ? 'border-emerald-400 bg-emerald-400 text-neutral-900' : 'border-neutral-600 text-transparent'
-                  }`}
+                  onClick={() => handleToggleTask(t.id, t.done)}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-neutral-600 text-xs text-transparent"
                 >
                   ✓
                 </button>
-                <span className={`flex-1 text-sm ${t.done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{t.title}</span>
+                <span className="flex-1 text-sm text-neutral-100">{t.title}</span>
                 <button onClick={() => deleteTask(project.id, t.id)} className="text-neutral-600">
                   ✕
                 </button>
               </div>
             ))}
           </div>
+
+          {justCompleted && (
+            <p className="mt-2 text-xs text-emerald-400">✅ Tarea completada — ¿cuál es el siguiente paso?</p>
+          )}
           <div className="mt-2 flex gap-2">
             <input
+              ref={newTaskInputRef}
               value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
+              onChange={(e) => {
+                setNewTask(e.target.value);
+                if (justCompleted) setJustCompleted(false);
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
               placeholder="Añadir una tarea…"
               className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
@@ -205,6 +231,35 @@ export function ProjectDetail({ id, onNavigate }: { id: string; onNavigate: (r: 
               Añadir
             </button>
           </div>
+
+          {completedTasks.length > 0 && (
+            <div className="mt-3">
+              <button onClick={() => setShowCompleted((v) => !v)} className="text-xs font-medium text-neutral-400 underline">
+                {showCompleted ? 'Ocultar' : 'Ver'} completadas ({completedTasks.length})
+              </button>
+              {showCompleted && (
+                <div className="mt-2 space-y-1.5">
+                  {completedTasks.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2.5 rounded-xl border border-neutral-900 bg-neutral-900/40 px-3 py-2.5">
+                      <button
+                        onClick={() => handleToggleTask(t.id, t.done)}
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-emerald-400 bg-emerald-400 text-xs text-neutral-900"
+                      >
+                        ✓
+                      </button>
+                      <div className="flex-1">
+                        <p className="text-sm text-neutral-500 line-through">{t.title}</p>
+                        {t.completedAt && <p className="text-xs text-neutral-600">Completada el {formatDate(t.completedAt)}</p>}
+                      </div>
+                      <button onClick={() => deleteTask(project.id, t.id)} className="text-neutral-600">
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section>

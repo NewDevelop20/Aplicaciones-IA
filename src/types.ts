@@ -24,6 +24,7 @@ export interface Task {
   id: string;
   title: string;
   done: boolean;
+  completedAt: string | null;
   dueDate: string | null;
   notes: string;
   createdAt: string;

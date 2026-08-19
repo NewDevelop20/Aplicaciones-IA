@@ -108,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTask: StoreValue['addTask'] = useCallback((projectId, title) => {
-    const task: Task = { id: newId(), title, done: false, dueDate: null, notes: '', createdAt: new Date().toISOString() };
+    const task: Task = { id: newId(), title, done: false, completedAt: null, dueDate: null, notes: '', createdAt: new Date().toISOString() };
     setDataState((d) => ({
       ...d,
       projects: d.projects.map((p) => (p.id === projectId ? { ...p, tasks: [...p.tasks, task], updatedAt: new Date().toISOString() } : p)),
@@ -120,7 +120,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...d,
       projects: d.projects.map((p) =>
         p.id === projectId
-          ? { ...p, tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)), updatedAt: new Date().toISOString() }
+          ? {
+              ...p,
+              tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done, completedAt: !t.done ? new Date().toISOString() : null } : t)),
+              updatedAt: new Date().toISOString(),
+            }
           : p
       ),
     }));
