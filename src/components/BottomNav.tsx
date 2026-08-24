@@ -3,6 +3,7 @@ import type { Route } from '../router';
 const ITEMS: { route: Route; label: string; icon: string }[] = [
   { route: { name: 'dashboard' }, label: 'Ideas', icon: '💡' },
   { route: { name: 'people' }, label: 'Personas', icon: '👥' },
+  { route: { name: 'dictate' }, label: 'Dictar', icon: '🎤' },
   { route: { name: 'backup' }, label: 'Ajustes', icon: '⚙️' },
 ];
 

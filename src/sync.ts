@@ -1,4 +1,5 @@
 import type { AppData } from './types';
+import { normalize } from './storage';
 
 const TOKEN_KEY = 'ideario:sync-token:v1';
 const LAST_SYNC_KEY = 'ideario:last-sync:v1';
@@ -7,6 +8,7 @@ const OWNER = 'NewDevelop20';
 const REPO = 'Aplicaciones-IA';
 const BRANCH = 'claude/personal-ideas-management-app-g5vwdr';
 const WORKFLOW_FILE = 'sync-data.yml';
+const RAW_DATA_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/data/ideario-data.json`;
 
 export function getSyncToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -57,5 +59,25 @@ export async function syncNow(data: AppData): Promise<SyncResult> {
     return { ok: false, error: `GitHub respondió ${res.status}. ${text.slice(0, 200)}` };
   } catch (err) {
     return { ok: false, error: `No se pudo conectar con GitHub (red o CORS bloqueado): ${(err as Error).message}` };
+  }
+}
+
+export interface PullResult {
+  ok: boolean;
+  data?: AppData;
+  error?: string;
+}
+
+export async function pullFromServer(): Promise<PullResult> {
+  try {
+    const res = await fetch(`${RAW_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) {
+      return { ok: false, error: res.status === 404 ? 'Todavía no hay datos sincronizados en el servidor.' : `El servidor respondió ${res.status}.` };
+    }
+    const parsed = normalize(await res.json());
+    if (!parsed) return { ok: false, error: 'El archivo del servidor no tiene un formato válido.' };
+    return { ok: true, data: parsed };
+  } catch (err) {
+    return { ok: false, error: `No se pudo conectar con el servidor: ${(err as Error).message}` };
   }
 }

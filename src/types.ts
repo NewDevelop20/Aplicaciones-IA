@@ -46,8 +46,20 @@ export interface Project {
   updatedAt: string;
 }
 
+export type VoiceNoteStatus = 'pending' | 'processed';
+
+export interface VoiceNote {
+  id: string;
+  text: string;
+  status: VoiceNoteStatus;
+  resultSummary: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
 export interface AppData {
   version: 1;
   projects: Project[];
   people: Person[];
+  voiceNotes: VoiceNote[];
 }

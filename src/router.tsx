@@ -5,6 +5,7 @@ export type Route =
   | { name: 'new' }
   | { name: 'project'; id: string }
   | { name: 'people' }
+  | { name: 'dictate' }
   | { name: 'backup' };
 
 function parseHash(hash: string): Route {
@@ -13,6 +14,7 @@ function parseHash(hash: string): Route {
   if (projectMatch) return { name: 'project', id: decodeURIComponent(projectMatch[1]) };
   if (path === '/new') return { name: 'new' };
   if (path === '/people') return { name: 'people' };
+  if (path === '/dictate') return { name: 'dictate' };
   if (path === '/backup') return { name: 'backup' };
   return { name: 'dashboard' };
 }
@@ -27,6 +29,8 @@ export function routeToHash(route: Route): string {
       return `#/project/${encodeURIComponent(route.id)}`;
     case 'people':
       return '#/people';
+    case 'dictate':
+      return '#/dictate';
     case 'backup':
       return '#/backup';
   }

@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AppData, Person, Project, Status, Task } from './types';
+import type { AppData, Person, Project, Status, Task, VoiceNote } from './types';
 import { loadData, newId, saveData } from './storage';
-import { getLastSyncedAt, getSyncToken, syncNow } from './sync';
+import { getLastSyncedAt, getSyncToken, pullFromServer, syncNow } from './sync';
 
 export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'error';
+export type PullStatus = 'idle' | 'pulling' | 'ok' | 'error';
 
 interface StoreValue {
   data: AppData;
@@ -13,6 +14,10 @@ interface StoreValue {
   syncError: string | null;
   lastSyncedAt: string | null;
   triggerSync: () => void;
+  pullStatus: PullStatus;
+  pullError: string | null;
+  pullLatest: () => Promise<void>;
+  addVoiceNote: (text: string) => VoiceNote;
   addProject: (input: { title: string; description: string; status: Status; priority: Project['priority']; startDate: string | null; dueDate: string | null; tags: string[]; nextStep: string }) => Project;
   updateProject: (id: string, patch: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
   deleteProject: (id: string) => void;
@@ -57,6 +62,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (syncTimer.current) window.clearTimeout(syncTimer.current);
     void runSync(data);
   }, [data, runSync]);
+
+  const [pullStatus, setPullStatus] = useState<PullStatus>('idle');
+  const [pullError, setPullError] = useState<string | null>(null);
+
+  const pullLatest = useCallback(async () => {
+    setPullStatus('pulling');
+    setPullError(null);
+    const result = await pullFromServer();
+    if (result.ok && result.data) {
+      setDataState(result.data);
+      setPullStatus('ok');
+    } else {
+      setPullStatus('error');
+      setPullError(result.error ?? 'Error desconocido');
+    }
+  }, []);
 
   useEffect(() => {
     if (isFirstRun.current) {
@@ -168,6 +189,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const addVoiceNote: StoreValue['addVoiceNote'] = useCallback((text) => {
+    const note: VoiceNote = { id: newId(), text, status: 'pending', resultSummary: null, createdAt: new Date().toISOString(), processedAt: null };
+    setDataState((d) => ({ ...d, voiceNotes: [note, ...d.voiceNotes] }));
+    return note;
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       data,
@@ -176,6 +203,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       syncError,
       lastSyncedAt,
       triggerSync,
+      pullStatus,
+      pullError,
+      pullLatest,
+      addVoiceNote,
       addProject,
       updateProject,
       deleteProject,
@@ -187,7 +218,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updatePerson,
       deletePerson,
     }),
-    [data, setData, syncStatus, syncError, lastSyncedAt, triggerSync, addProject, updateProject, deleteProject, addTask, toggleTask, updateTask, deleteTask, addPerson, updatePerson, deletePerson]
+    [
+      data,
+      setData,
+      syncStatus,
+      syncError,
+      lastSyncedAt,
+      triggerSync,
+      pullStatus,
+      pullError,
+      pullLatest,
+      addVoiceNote,
+      addProject,
+      updateProject,
+      deleteProject,
+      addTask,
+      toggleTask,
+      updateTask,
+      deleteTask,
+      addPerson,
+      updatePerson,
+      deletePerson,
+    ]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

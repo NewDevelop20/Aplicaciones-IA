@@ -5,6 +5,7 @@ import { Dashboard } from './screens/Dashboard';
 import { NewProject } from './screens/NewProject';
 import { ProjectDetail } from './screens/ProjectDetail';
 import { People } from './screens/People';
+import { Dictate } from './screens/Dictate';
 import { Backup } from './screens/Backup';
 
 function Screens() {
@@ -16,6 +17,7 @@ function Screens() {
       {route.name === 'new' && <NewProject onNavigate={navigate} />}
       {route.name === 'project' && <ProjectDetail id={route.id} onNavigate={navigate} />}
       {route.name === 'people' && <People />}
+      {route.name === 'dictate' && <Dictate />}
       {route.name === 'backup' && <Backup />}
       <BottomNav current={route} onNavigate={navigate} />
     </>

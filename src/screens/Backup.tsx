@@ -4,7 +4,7 @@ import { exportDataFile, parseImportedFile } from '../storage';
 import { getSyncToken, setSyncToken } from '../sync';
 
 export function Backup() {
-  const { data, setData, syncStatus, syncError, lastSyncedAt, triggerSync } = useStore();
+  const { data, setData, syncStatus, syncError, lastSyncedAt, triggerSync, pullStatus, pullError, pullLatest } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState(() => getSyncToken() ?? '');
@@ -36,8 +36,14 @@ export function Backup() {
 
   function handleReset() {
     if (confirm('Esto borrará todas las ideas, proyectos y personas de este dispositivo. ¿Seguro?')) {
-      setData({ version: 1, projects: [], people: [] });
+      setData({ version: 1, projects: [], people: [], voiceNotes: [] });
       setMessage('Se han borrado todos los datos.');
+    }
+  }
+
+  async function handlePull() {
+    if (confirm('Esto reemplazará los datos de este iPhone por la última versión guardada en el servidor. ¿Continuar?')) {
+      await pullLatest();
     }
   }
 
@@ -62,7 +68,8 @@ export function Backup() {
             <SyncBadge status={syncStatus} hasToken={hasToken} />
           </div>
           <p className="mt-1 text-sm text-neutral-400">
-            Pega aquí un token de GitHub para que tus datos se sincronicen y recibas cada noche un resumen del estado de tus ideas.
+            Pega aquí un token de GitHub para que tus datos se sincronicen, recibas cada noche un resumen del estado de tus ideas, y para
+            que las notas dictadas en "Dictar" se procesen automáticamente.
           </p>
 
           <input
@@ -112,6 +119,22 @@ export function Backup() {
               <li>Generate token, cópialo y pégalo arriba. Es privado: se queda solo en este iPhone.</li>
             </ol>
           )}
+        </section>
+
+        <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
+          <h2 className="text-sm font-semibold text-neutral-100">Traer cambios del servidor</h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Cuando yo (Claude) procese una nota dictada o algo se sincronice desde otro sitio, usa esto para bajarlo a este iPhone.
+          </p>
+          <button
+            onClick={handlePull}
+            disabled={pullStatus === 'pulling'}
+            className="mt-3 w-full rounded-xl border border-neutral-700 py-2.5 text-sm font-medium text-neutral-200 disabled:opacity-50"
+          >
+            {pullStatus === 'pulling' ? 'Descargando…' : 'Traer cambios ahora'}
+          </button>
+          {pullStatus === 'ok' && <p className="mt-2 text-xs text-emerald-400">Datos actualizados desde el servidor.</p>}
+          {pullStatus === 'error' && pullError && <p className="mt-2 text-xs text-rose-400">{pullError}</p>}
         </section>
 
         <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
